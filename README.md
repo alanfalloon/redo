@@ -1,3 +1,16 @@
+# IMPORTANT NOTE (from afalloon)
+
+I cloned this with the intention of learning
+[rust](http://rust-lang.org) by re-implementing redo in rust. Since
+this project already has tests, and a working reference
+implementation, it's a good opportunity for me to work on something
+useful and interesting while limiting the complexity to only learning
+a new language.
+
+*However* as you can see, except for this README change, there is
+almost nothing here. Don't hold your breath, and sorry if the title
+got your hopes up.
+
 # redo: a top-down software build system
 
 `redo` is a competitor to the long-lived, but sadly imperfect, `make`
