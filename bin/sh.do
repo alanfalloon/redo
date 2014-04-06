@@ -1,10 +1,8 @@
 exec >&2
-redo-ifchange t/shelltest.od
+redo-ifchange ../t/shelltest.od
 
-set "redo-sh" "redo-sh" "redo-sh.tmp"
-
-rm -rf $1.new $1/sh
-mkdir $1.new
+SHTMPDIR="$(mktemp -d "$PWD/shelltest.XXXXX")"
+trap "rm -rf '$SHTMPDIR'" EXIT
 
 GOOD=
 WARN=
@@ -22,11 +20,11 @@ for sh in dash sh /usr/xpg4/bin/sh ash posh mksh ksh ksh88 ksh93 pdksh \
 	# shells (like bash and zsh) only go into POSIX-compatible mode if
 	# they have that name.  If they're not in POSIX-compatible mode,
 	# they'll fail the test.
-	rm -f $1.new/sh
-	ln -s $FOUND $1.new/sh
+	rm -f $SHTMPDIR/sh
+	ln -s $FOUND $SHTMPDIR/sh
 	
 	set +e
-	( cd t && ../$1.new/sh shelltest.od >shelltest.tmp 2>&1 )
+	( cd ../t && $SHTMPDIR/sh shelltest.od >shelltest.tmp 2>&1 )
 	RV=$?
 	set -e
 	
@@ -39,8 +37,8 @@ for sh in dash sh /usr/xpg4/bin/sh ash posh mksh ksh ksh88 ksh93 pdksh \
 		crash=$line
 		[ "$line" = "$stripw" ] || msgs="$msgs W$stripw"
 		[ "$line" = "$stripf" ] || msgs="$msgs F$stripf"
-	done <t/shelltest.tmp
-	rm -f t/shelltest.tmp
+	done <../t/shelltest.tmp
+	rm -f ../t/shelltest.tmp
 	msgs=${msgs# }
 	crash=${crash##*:}
 	crash=${crash# }
@@ -53,18 +51,13 @@ for sh in dash sh /usr/xpg4/bin/sh ash posh mksh ksh ksh88 ksh93 pdksh \
 	esac
 done
 
-rm -rf $1 $1.new $3
-
 if [ -n "$GOOD" ]; then
 	echo "Selected perfect shell: $GOOD"
-	mkdir $3
-	ln -s $GOOD $3/sh
+	ln -s $GOOD $3
 elif [ -n "$WARN" ]; then
 	echo "Selected mostly good shell: $WARN"
-	mkdir $3
-	ln -s $WARN $3/sh
+	ln -s $WARN $3
 else
 	echo "No good shells found!  Maybe install dash, bash, or zsh."
 	exit 13
 fi
-mv $3 redo-sh

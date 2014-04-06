@@ -2,7 +2,6 @@
 *~
 *.pyc
 *.tmp
-/redo-sh
 *.redo
-/rredo
-/rredo.dep
+/bin/
+-/bin/*.do
