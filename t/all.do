@@ -16,3 +16,5 @@ xargs redo
 /bin/ls [2-9][0-9][0-9]*/all.do |
 sed 's/\.do$//' |
 xargs redo
+
+echo -n ok > result

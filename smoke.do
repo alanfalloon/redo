@@ -1,8 +1,10 @@
-redo-ifchange rredo
+exec >$3
 
-./rredo -h
-./rredo --help
-./rredo --version
+redo-ifchange bin/redo
+
+bin/redo -h
+bin/redo --help
+bin/redo --version
 
 rand_num() {
     shuf -n1 -i0-$1
@@ -28,8 +30,6 @@ EOF
 )
     TGTS=$(find *.do */ -name '*.do' -type f | sed -e 's/\.do$//' | shuf -n$(rand_num 15))
     ARGS=$(shuf -e -- $FLAGS $TGTS)
-    (
-        set -x
-        ./rredo $ARGS
-    )
+    echo $ARGS
+    bin/redo $ARGS
 done

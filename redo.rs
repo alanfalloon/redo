@@ -7,22 +7,26 @@ use getopts::{optopt,optflag,getopts,usage};
 use std::os;
 use std::path::posix::Path;
 
+#[cfg(not(test))]
 fn main() -> () {
-    let (flavour, targets) = match read_opts() {
+    let (flavour, envs, targets) = match read_opts(os::args()) {
         Ok(r) => r,
         Err(m) => {
             println!("{}", m);
             return;
         }
     };
+    for env in envs.iter() {
+        os::setenv(*env, "1");
+    }
     if !std::str::eq_slice(flavour, "redo-exec") {
         // FIXME: Run init here
     }
     // FIXME: actually run proper body.
-    println!("{}: {}", flavour, targets);
+    println!("{}: {} {}", flavour, envs, targets);
 }
 
-fn read_opts() -> Result<(~str, Vec<~str>), ~str> {
+fn read_opts(args: &[~str]) -> Result<(~str, Vec<~str>, Vec<~str>), ~str> {
     let opt_defs = ~[
         //    optopt("j", "jobs", "maximum number of jobs to build at once", "JOBS"),
         optflag("d", "debug", "print dependency checks as they happen"),
@@ -41,7 +45,6 @@ fn read_opts() -> Result<(~str, Vec<~str>), ~str> {
         optflag("", "warn-stdout", "warn if stdout is used"),
         optopt("", "main", "Choose which redo flavour to execute", "PROG-NAME"),
     ];
-    let args = os::args();
     let progname = args[0].clone();
     let opts = match getopts(args.tail(), opt_defs) {
         Ok(m) => m,
@@ -63,24 +66,27 @@ Rebuild targets", progname), opt_defs));
         }
     };
     
-    setenv_if_opt(&opts, "color", "REDO_COLOR");
-    setenv_if_opt(&opts, "debug", "REDO_DEBUG");
-    setenv_if_opt(&opts, "debug-locks", "REDO_DEBUG_LOCKS");
-    setenv_if_opt(&opts, "debug-pids", "REDO_DEBUG_PIDS");
-    setenv_if_opt(&opts, "keep-going", "REDO_KEEP_GOING");
-    setenv_if_opt(&opts, "log", "REDO_LOG");
-    setenv_if_opt(&opts, "only-log", "REDO_ONLY_LOG");
-    setenv_if_opt(&opts, "overwrite", "REDO_OVERWRITE");
-    setenv_if_opt(&opts, "shuffle", "REDO_SHUFFLE");
-    setenv_if_opt(&opts, "verbose", "REDO_VERBOSE");
-    setenv_if_opt(&opts, "warn-stdout", "REDO_WARN_STDOUT");
-    setenv_if_opt(&opts, "xtrace", "REDO_XTRACE");
+    // These are the environment variables that communicate the
+    // options to all the child instances of redo.
+    let mut env_set = Vec::new();
+    if opts.opt_present("color") { env_set.push(~"REDO_COLOR"); }
+    if opts.opt_present("debug") { env_set.push(~"REDO_DEBUG"); }
+    if opts.opt_present("debug-locks") { env_set.push(~"REDO_DEBUG_LOCKS"); }
+    if opts.opt_present("debug-pids") { env_set.push(~"REDO_DEBUG_PIDS"); }
+    if opts.opt_present("keep-going") { env_set.push(~"REDO_KEEP_GOING"); }
+    if opts.opt_present("log") { env_set.push(~"REDO_LOG"); }
+    if opts.opt_present("only-log") { env_set.push(~"REDO_ONLY_LOG"); }
+    if opts.opt_present("overwrite") { env_set.push(~"REDO_OVERWRITE"); }
+    if opts.opt_present("shuffle") { env_set.push(~"REDO_SHUFFLE"); }
+    if opts.opt_present("verbose") { env_set.push(~"REDO_VERBOSE"); }
+    if opts.opt_present("warn-stdout") { env_set.push(~"REDO_WARN_STDOUT"); }
+    if opts.opt_present("xtrace") { env_set.push(~"REDO_XTRACE"); }
 
-    return Ok((flavour, opts.free));
+    return Ok((flavour, env_set, opts.free));
 }
 
-fn setenv_if_opt(opts: &getopts::Matches, opt: &str, env: &str) {
-    if opts.opt_present(opt) {
-        os::setenv(env, "1");
-    }
+#[test]
+fn test_arg_parse() -> () {
+    let x = read_opts([~"redo", ~"--shuffle", ~"foo", ~"-x", ~"bar"]);
+    assert!(x.eq(&Ok((~"redo", vec!(~"REDO_SHUFFLE", ~"REDO_XTRACE"), vec!(~"foo", ~"bar")))));
 }
