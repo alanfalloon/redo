@@ -35,6 +35,9 @@ Some stuff I don't know if I'll bother reimplementing:
 
 ## Above and Beyond the Python Implementation
 
+- Add a something like Makes -w option that prints the directory that
+  we are in. This would make emacs work much better with the output.
+
 Since this is a rust implementation, and rust is still a moving
 target, it is critical to get this project added to the rust-nightly
 test runs in Travis CI.
