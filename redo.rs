@@ -3,11 +3,21 @@
 #![feature(globs, phase)]
 
 extern crate getopts;
+extern crate native;
+extern crate time;
 use getopts::{optopt,optflag,getopts,usage};
 use std::os;
-use std::path::posix::Path;
+use std::path::Path;
+
+mod mains;
+mod runid;
 
 #[cfg(not(test))]
+#[start]
+pub fn start(argc: int, argv: **u8) -> int {
+    native::start(argc, argv, main)
+}
+
 fn main() -> () {
     let (flavour, envs, targets) = match read_opts(os::args()) {
         Ok(r) => r,
@@ -20,10 +30,33 @@ fn main() -> () {
         os::setenv(*env, "1");
     }
     if !std::str::eq_slice(flavour, "redo-exec") {
-        // FIXME: Run init here
+        let bin_dir = os::getcwd().join(os::self_exe_path().unwrap());
+
+        // Ensure that REDO is set to the redo bin, and make sure that
+        // the path to this executable is first in the PATH
+        // environment variable.
+        if os::getenv("REDO").is_none() {
+            os::setenv("REDO", bin_dir.join("redo").as_str().unwrap());
+            let new_path = match os::getenv("PATH") {
+                None => bin_dir.as_str().unwrap().to_owned(),
+                Some(p) => bin_dir.as_str().unwrap() + ":" + p
+            };
+            os::setenv("PATH", new_path);
+        }
+
+        // Ensure REDO_STARTDIR is captured. This is the top of the
+        // build. This also indicates a new build starting, increment
+        // the runid.
+        if os::getenv("REDO_STARTDIR").is_none() {
+            os::setenv("REDO_STARTDIR", os::getcwd().as_str().unwrap());
+            os::setenv("REDO_RUNID_FILE", ".redo/runid");
+            runid::increment(Path::new(".redo/runid"));
+        }
     }
-    // FIXME: actually run proper body.
-    println!("{}: {} {}", flavour, envs, targets);
+    match flavour.as_slice() {
+        "redo" => mains::redo(flavour, targets),
+        _ => fail!("Unrecognized redo flavour: {}", flavour)
+    }
 }
 
 fn read_opts(args: &[~str]) -> Result<(~str, Vec<~str>, Vec<~str>), ~str> {
@@ -60,10 +93,7 @@ Rebuild targets", progname), opt_defs));
     };
     let flavour: ~str = match opts.opt_str("main") {
         Some(f) => f,
-        None => match Path::new(progname.clone()).with_extension("").filename_str() {
-            Some(m) => m.to_owned(),
-            None => fail!("Can't match: " + progname)
-        }
+        None => Path::new(progname).with_extension("").filename_str().unwrap().to_owned()
     };
     
     // These are the environment variables that communicate the
@@ -89,4 +119,8 @@ Rebuild targets", progname), opt_defs));
 fn test_arg_parse() -> () {
     let x = read_opts([~"redo", ~"--shuffle", ~"foo", ~"-x", ~"bar"]);
     assert!(x.eq(&Ok((~"redo", vec!(~"REDO_SHUFFLE", ~"REDO_XTRACE"), vec!(~"foo", ~"bar")))));
+    let x = read_opts([~"/foo/bar/redo-ifchange.exe", ~"bar"]);
+    assert!(x.eq(&Ok((~"redo-ifchange", vec!(), vec!(~"bar")))));
+    let x = read_opts([~"/foo/bar/redo-ifchange.exe", ~"bar", ~"--main=redo-stamp"]);
+    assert!(x.eq(&Ok((~"redo-stamp", vec!(), vec!(~"bar")))));
 }
