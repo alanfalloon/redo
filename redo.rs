@@ -18,6 +18,7 @@ pub fn start(argc: int, argv: **u8) -> int {
     native::start(argc, argv, main)
 }
 
+#[cfg(not(test))]
 fn main() -> () {
     let (flavour, envs, targets) = match read_opts(os::args()) {
         Ok(r) => r,
@@ -31,27 +32,11 @@ fn main() -> () {
     }
     if !std::str::eq_slice(flavour, "redo-exec") {
         let bin_dir = os::getcwd().join(os::self_exe_path().unwrap());
-
-        // Ensure that REDO is set to the redo bin, and make sure that
-        // the path to this executable is first in the PATH
-        // environment variable.
-        if os::getenv("REDO").is_none() {
-            os::setenv("REDO", bin_dir.join("redo").as_str().unwrap());
-            let new_path = match os::getenv("PATH") {
-                None => bin_dir.as_str().unwrap().to_owned(),
-                Some(p) => bin_dir.as_str().unwrap() + ":" + p
-            };
-            os::setenv("PATH", new_path);
-        }
-
-        // Ensure REDO_STARTDIR is captured. This is the top of the
-        // build. This also indicates a new build starting, increment
-        // the runid.
-        if os::getenv("REDO_STARTDIR").is_none() {
-            os::setenv("REDO_STARTDIR", os::getcwd().as_str().unwrap());
-            os::setenv("REDO_RUNID_FILE", ".redo/runid");
-            runid::increment(Path::new(".redo/runid"));
-        }
+        init_path(&bin_dir);
+        match init_start_dir() {
+            None => 0,
+            Some(runidfile) => runid::increment(&runidfile)
+        };
     }
     match flavour.as_slice() {
         "redo" => mains::redo(flavour, targets),
@@ -116,11 +101,70 @@ Rebuild targets", progname), opt_defs));
 }
 
 #[test]
-fn test_arg_parse() -> () {
+fn test_read_opts() -> () {
     let x = read_opts([~"redo", ~"--shuffle", ~"foo", ~"-x", ~"bar"]);
     assert!(x.eq(&Ok((~"redo", vec!(~"REDO_SHUFFLE", ~"REDO_XTRACE"), vec!(~"foo", ~"bar")))));
     let x = read_opts([~"/foo/bar/redo-ifchange.exe", ~"bar"]);
     assert!(x.eq(&Ok((~"redo-ifchange", vec!(), vec!(~"bar")))));
     let x = read_opts([~"/foo/bar/redo-ifchange.exe", ~"bar", ~"--main=redo-stamp"]);
     assert!(x.eq(&Ok((~"redo-stamp", vec!(), vec!(~"bar")))));
+}
+
+fn init_path(bin_dir: &Path) -> bool {
+    // Ensure that REDO is set to the redo bin, and make sure that
+    // the path to this executable is first in the PATH
+    // environment variable.
+    if os::getenv("REDO").is_none() {
+        os::setenv("REDO", bin_dir.join("redo").as_str().unwrap());
+        let new_path = match os::getenv("PATH") {
+            None => bin_dir.as_str().unwrap().to_owned(),
+            Some(p) => bin_dir.as_str().unwrap() + ":" + p
+        };
+        os::setenv("PATH", new_path);
+        true
+    } else {
+        false
+    }
+}
+
+#[test]
+fn test_init_path() -> () {
+    os::unsetenv("REDO");
+    os::unsetenv("PATH");
+    let bin_dir = Path::new("/foo/bar");
+    assert!(init_path(&bin_dir));
+    assert_env("REDO", "/foo/bar/redo");
+    assert_env("PATH", "/foo/bar");
+    assert!(!init_path(&bin_dir));
+    os::unsetenv("REDO");
+    os::setenv("PATH", "/bin:/sbin");
+    assert!(init_path(&bin_dir));
+    assert_env("REDO", "/foo/bar/redo");
+    assert_env("PATH", "/foo/bar:/bin:/sbin");
+}
+
+#[cfg(test)]
+fn assert_env(env: &str, val: &str) -> () {
+    assert!(std::str::eq_slice(os::getenv(env).unwrap(), val));
+}
+
+fn init_start_dir() -> Option<Path> {
+    // Ensure REDO_STARTDIR is captured. This is the top of the
+    // build. This also indicates a new build starting, increment
+    // the runid.
+    if os::getenv("REDO_STARTDIR").is_none() {
+        os::setenv("REDO_STARTDIR", os::getcwd().as_str().unwrap());
+        os::setenv("REDO_RUNID_FILE", ".redo/runid");
+        Some(Path::new(".redo/runid"))
+    } else {
+        None
+    }
+}
+
+#[test]
+fn test_start_dir() -> () {
+    os::unsetenv("REDO_STARTDIR");
+    os::unsetenv("REDO_RUNID_FILE");
+    assert!(init_start_dir() == Some(Path::new(".redo/runid")));
+    assert!(init_start_dir().is_none());
 }
