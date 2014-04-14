@@ -1,6 +1,9 @@
 #![crate_id="redo#0.1"]
 #![crate_type = "bin"]
 #![feature(globs, phase)]
+#![feature(macro_rules)]
+#[phase(syntax, link)]
+extern crate log;
 
 extern crate getopts;
 extern crate native;
@@ -11,6 +14,9 @@ use std::path::Path;
 
 mod mains;
 mod runid;
+mod state;
+mod builder;
+mod vars;
 
 #[cfg(not(test))]
 #[start]
@@ -27,9 +33,7 @@ fn main() -> () {
             return;
         }
     };
-    for env in envs.iter() {
-        os::setenv(*env, "1");
-    }
+    ::vars::set(envs);
     if !std::str::eq_slice(flavour, "redo-exec") {
         let bin_dir = os::getcwd().join(os::self_exe_path().unwrap());
         init_path(&bin_dir);
@@ -38,8 +42,9 @@ fn main() -> () {
             Some(runidfile) => runid::increment(&runidfile)
         };
     }
+    let v = &vars::v();
     match flavour.as_slice() {
-        "redo" => mains::redo(flavour, targets),
+        "redo" => mains::redo(v, flavour, targets),
         _ => fail!("Unrecognized redo flavour: {}", flavour)
     }
 }
