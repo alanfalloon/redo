@@ -131,7 +131,7 @@ configvars!(
 
 pub fn set(opts: Vec<~str>) {
     for opt in opts.iter() {
-        setenv(opt, "1");
+        setenv(*opt, "1");
     }
 }
 
@@ -139,14 +139,15 @@ pub fn set(opts: Vec<~str>) {
 fn load_vars() {
     unsetall();
     setenv("REDO_DEPTH", "1");
-    setenv("REDO_DEBUG", "1");
+    setenv("REDO_KEEP_GOING", "1");
     setenv("REDO_TARGET", "bin/foo/bar");
     let v = ::vars::v();
     assert_eq!(v.STARTDIR, ~"");
     assert_eq!(v.PWD, ~"");
     assert_eq!(v.TARGET, ~"bin/foo/bar");
     assert_eq!(v.DEPTH, 1);
-    assert_eq!(v.DEBUG, true);
+    assert_eq!(v.KEEP_GOING, true);
+    assert_eq!(v.LOG, false);
 }
 
 #[cfg(test)]
