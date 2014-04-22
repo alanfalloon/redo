@@ -41,6 +41,8 @@ fn main() -> () {
             None => 0,
             Some(runidfile) => runid::increment(&runidfile)
         };
+    } else {
+        vars::unsetall();
     }
     let v = &vars::v();
     match flavour.as_slice() {

@@ -1,4 +1,4 @@
-use std::from_str::{FromStr, from_str};
+use std::from_str::from_str;
 use std::os::{getenv,setenv};
 use std::default::Default;
 use std::char::to_lowercase;
@@ -129,6 +129,7 @@ configvars!(
     }
 )
 
+#[cfg(not(test))]
 pub fn set(opts: Vec<~str>) {
     for opt in opts.iter() {
         setenv(*opt, "1");
@@ -150,8 +151,7 @@ fn load_vars() {
     assert_eq!(v.LOG, false);
 }
 
-#[cfg(test)]
-fn unsetall() {
+pub fn unsetall() {
     for varname in var_names.iter() {
         ::std::os::unsetenv(*varname);
     }
