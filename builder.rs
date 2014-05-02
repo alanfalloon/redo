@@ -8,6 +8,105 @@ fn test_builder() {
 }
 
 mod dofile {
+    use std::path::Path;
+
+    #[deriving(Eq, Clone)]
+    struct DefaultDoFile {
+        dofile: Path,
+        base: Path,
+        ext: ~[u8]
+    }
+
+    #[cfg(test)]
+    impl ::std::fmt::Show for DefaultDoFile {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+            write!(f.buf, "DDF\\{dofile:\"{}\", base:\"{}\", ext:\"{}\"\\}",
+                   self.dofile.display(),
+                   self.base.display(),
+                   ::std::str::from_utf8(self.ext).unwrap())
+        }
+    }
+
+    fn default_do_files<'a>(filename: Path) ->
+        ::std::iter::Unfold<'a, DefaultDoFile, DefaultDoFileIterState>
+    {
+        static DOT: u8 = '.' as u8;
+        static DEFAULT: &'static [u8] = bytes!("default");
+        static DO: &'static [u8] = bytes!("do");
+
+        fn join_dots(v: &Vec<~[u8]>) -> ~[u8] {
+            v.as_slice().connect_vec(&DOT)
+        }
+
+        fn mk_do_name(v: &Vec<~[u8]>) -> ~[u8] {
+            let a4: Vec<~[u8]> =
+                vec!(DEFAULT.to_owned()).move_iter()
+                .chain(v.clone().move_iter())
+                .chain(vec!(DO.to_owned()).move_iter())
+                .collect();
+            join_dots(&a4)
+        }
+
+        let fbytes: &[u8] = filename.as_vec();
+        assert!(!fbytes.iter().any(::std::path::is_sep_byte));
+        let parts: Vec<~[u8]> = fbytes.split(|b| *b == DOT).map(|p| p.to_owned()).collect();
+
+        ::std::iter::Unfold::new(
+            DefaultDoFileIterState {ext: parts, base: Vec::new()},
+            |st| {
+                match st.ext.shift() {
+                    None => return None,
+                    Some(x) => {
+                        st.base.push(x);
+                        Some(DefaultDoFile{
+                            dofile: Path::new(mk_do_name(&st.ext)),
+                            base: Path::new(join_dots(&st.base)),
+                            ext: join_dots(&st.ext)
+                        })
+                    }
+                }
+            })
+    }
+
+    struct DefaultDoFileIterState {
+        ext: Vec<~[u8]>,
+        base: Vec<~[u8]>
+    }
+
+    #[test]
+    fn defaults_iter() {
+        let p = Path::new;
+        fn b(s: &str) -> ~[u8] {
+            s.as_bytes().to_owned()
+        }
+        assert_eq!(
+            vec!(
+                DefaultDoFile{
+                    dofile: p("default.foo.bar.c.do"),
+                    base: p("file"),
+                    ext: b("foo.bar.c")
+                },
+                DefaultDoFile{
+                    dofile: p("default.bar.c.do"),
+                    base: p("file.foo"),
+                    ext: b("bar.c")
+                },
+                DefaultDoFile{
+                    dofile: p("default.c.do"),
+                    base: p("file.foo.bar"),
+                    ext: b("c")
+                },
+                DefaultDoFile{
+                    dofile: p("default.do"),
+                    base: p("file.foo.bar.c"),
+                    ext: ~[]
+                }
+                ),
+            default_do_files(p("file.foo.bar.c")).collect());
+    }
+}
+
+mod old_dofile {
     /* Finding do-files:
      *
      * for a file foo/bar/baz.a.b.c the following .do-files should be
