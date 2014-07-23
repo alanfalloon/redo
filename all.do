@@ -1,2 +1,5 @@
-redo-ifchange _all
-echo "Nothing much to do.  Try 'redo t/all' or 'redo test'" >&2
+exec >&2
+redo-ifchange bin/redod bin/redocli
+export PATH="$PWD/bin:$PATH"
+redocli -v foo.bar
+bin/redocli --quiet -- baz.quux
