@@ -23,17 +23,18 @@ func main() {
 	quit = q
 	go listen()
 	<-q
-	os.Exit(0)
+	listener.Close()
 }
+
+var listener net.Listener
 
 func listen() {
 	log := logWrap("listen: ", log)
-	os.Remove("foo")
-	listener, err := net.Listen("unix", "foo")
+	var err error
+	listener, err = net.Listen("unix", "foo")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer listener.Close()
 
 	// This signals to the redocli that launched us that we have
 	// bound to the socket
