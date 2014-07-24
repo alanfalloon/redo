@@ -4,16 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	_log "log"
 	"net"
 	"os"
 	"sync"
 )
 
+var log *_log.Logger = _log.New(os.Stderr, fmt.Sprint("redod(", os.Getpid(), "): "), _log.LstdFlags)
+
+func logWrap(prefix string, l *_log.Logger) *_log.Logger {
+	return _log.New(os.Stderr, fmt.Sprint(l.Prefix(), prefix), l.Flags())
+}
+
 var quit chan<- bool
 
 func main() {
-	log.SetPrefix(fmt.Sprint("redod(", os.Getpid(), "): "))
 	var q = make(chan bool)
 	quit = q
 	go listen()
@@ -22,6 +27,7 @@ func main() {
 }
 
 func listen() {
+	log := logWrap("listen: ", log)
 	os.Remove("foo")
 	listener, err := net.Listen("unix", "foo")
 	if err != nil {
@@ -51,6 +57,7 @@ type Req struct {
 
 func handle(conn net.Conn) {
 	defer conn.Close()
+	log := logWrap("handle: ", log)
 
 	connections.Add(1)
 	defer connections.Done()
@@ -58,12 +65,11 @@ func handle(conn net.Conn) {
 		go reaper()
 	})
 
-	log.Print("reading")
+	log.Print("Reading")
 	b, err := ioutil.ReadAll(conn)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Print("unmarshalling")
 	var req Req
 	err = json.Unmarshal(b, &req)
 	if err != nil {
@@ -74,17 +80,17 @@ func handle(conn net.Conn) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Print("writing")
 	conn.Write(b)
-	log.Print("done")
+	log.Print("Done")
 }
 
 var connections sync.WaitGroup
 var once sync.Once
 
 func reaper() {
-	log.Print("Reaper started")
+	log := logWrap("reaper: ", log)
+	log.Print("Started")
 	connections.Wait()
-	log.Print("Reaper done; exiting")
+	log.Print("Done; exiting")
 	quit <- true
 }
