@@ -3,39 +3,41 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
+	"net"
 	"os"
 )
 
 func main() {
 	log.SetPrefix(fmt.Sprint("redocli(", os.Getpid(), "): "))
-	req := request()
+
+	conn, _ := dialDaemon()
+
+	conn.Write(marshal(request()))
+	display(response(conn))
+}
+
+func marshal(req interface{}) []byte {
 	b, err := json.Marshal(req)
 	if err != nil {
 		log.Fatal("json: ", err)
 	}
+	return b
+}
 
-	conn, cmd := dialDaemon()
-	defer waitDaemon(cmd)
-	defer conn.CloseRead()
-	conn.Write(b)
-	conn.CloseWrite()
-
+func response(conn net.Conn) []string {
 	dec := json.NewDecoder(conn)
 	var outlines []string
-	err = dec.Decode(&outlines)
+	err := dec.Decode(&outlines)
 	if err != nil {
 		log.Fatal(err)
 	}
+	return outlines
+}
 
+func display(lines []string) {
 	out := log.New(os.Stdout, "", 0)
-	for _, line := range outlines {
+	for _, line := range lines {
 		out.Println(line)
-	}
-	os.Stdout.Close()
-	err = dec.Decode(&outlines)
-	if err != io.EOF {
-		log.Fatal("Expected EOF not:", err)
 	}
 }
