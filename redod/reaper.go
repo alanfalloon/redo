@@ -5,7 +5,6 @@ import (
 )
 
 var connections sync.WaitGroup
-var once sync.Once
 
 func reaper() {
 	log := logWrap("reaper: ", log)
@@ -13,4 +12,14 @@ func reaper() {
 	connections.Wait()
 	log.Print("Done; exiting")
 	quit <- true
+}
+
+var once sync.Once
+
+func forestall_reaping() *sync.WaitGroup {
+	connections.Add(1)
+	once.Do(func() {
+		go reaper()
+	})
+	return &connections
 }

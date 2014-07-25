@@ -8,13 +8,8 @@ import (
 
 func handle(conn net.Conn) {
 	defer conn.Close()
+	defer forestall_reaping().Done()
 	log := logWrap("handle: ", log)
-
-	connections.Add(1)
-	defer connections.Done()
-	once.Do(func() {
-		go reaper()
-	})
 
 	log.Print("Reading")
 	b, err := ioutil.ReadAll(conn)
