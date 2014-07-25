@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net"
 )
 
@@ -47,18 +47,16 @@ func requests(conn net.Conn) <-chan Req {
 		log.Print("begin", conn)
 		defer log.Print("done", conn)
 
-		log.Print("Reading")
-		b, err := ioutil.ReadAll(conn)
-		if err != nil {
-			log.Fatal(err)
-		}
+		dec := json.NewDecoder(conn)
 		var req Req
-		err = json.Unmarshal(b, &req)
-		if err != nil {
-			log.Fatal(err)
+		var err error
+		for err = dec.Decode(&req); err == nil; err = dec.Decode(&req) {
+			log.Println("recieved", req)
+			sink <- req
 		}
-		log.Println("Recieved", req)
-		sink <- req
+		if err != io.EOF {
+			log.Fatal("fatal recv error:", err)
+		}
 	}(sink)
 	return sink
 }
