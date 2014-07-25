@@ -1,5 +1,16 @@
 package main
 
+import (
+	"fmt"
+)
+
+func fulfill_one(req Req) resp {
+	log := logWrap(fmt.Sprintf("fulfill[%v]:", req.Argv), log)
+	log.Print("begin")
+	defer log.Print("done")
+	return []string{"ok"}
+}
+
 func fulfill(reqs <-chan Req) <-chan resp {
 	var sink = make(chan resp, 1)
 	go func(sink chan<- resp) {
@@ -10,8 +21,7 @@ func fulfill(reqs <-chan Req) <-chan resp {
 		defer log.Print("done", reqs)
 
 		for req := range reqs {
-			log.Print("handling", req)
-			sink <- []string{"ok"}
+			sink <- fulfill_one(req)
 		}
 	}(sink)
 	return sink
