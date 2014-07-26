@@ -1,32 +1,37 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"net"
-	"os/exec"
+	"os"
 	"syscall"
 )
 
-func dialDaemon() (conn *net.UnixConn, cmd *exec.Cmd) {
-	for {
-		_conn, err := net.Dial("unix", "foo")
-		if operr, ok := err.(*net.OpError); ok {
-			switch operr.Err {
-			case syscall.ENOENT, syscall.ECONNREFUSED:
-				if cmd == nil {
-					cmd = launchDaemon()
-				} else {
-					log.Fatal("Already launched, but still: ", err)
-				}
-			default:
-				log.Fatal("unexpected error: ", operr)
-			}
-		} else if err != nil {
-			log.Fatal("unexpected non-operation error:", err)
-		} else {
-			conn = _conn.(*net.UnixConn)
-			return
-		}
+func connect() (conn *os.File) {
+	var redo_fd uintptr
+	n, err := fmt.Sscan(os.Getenv("REDO_FD"), &redo_fd)
+	if n == 0 {
+		return new_daemon()
 	}
-	panic("unreachable")
+	newf := os.NewFile(redo_fd, "REDO_FD")
+	_, err = newf.Stat()
+	if err != nil {
+		return new_daemon()
+	}
+	return newf
+}
+
+func new_daemon() (conn *os.File) {
+	us, them := socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	defer them.Close()
+	err := os.Setenv("REDO_FD", "3")
+	check(err)
+	launchDaemon(them)
+	return us
+}
+
+func check(err error) {
+	if err != nil {
+		log.Fatal("check:", err)
+	}
 }

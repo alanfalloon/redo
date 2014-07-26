@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"os"
 )
 
 func main() {
 	log.SetPrefix(fmt.Sprint("redocli(", os.Getpid(), "): "))
 
-	conn, _ := dialDaemon()
+	conn := connect()
 
 	conn.Write(marshal(request()))
 	display(response(conn))
@@ -25,12 +24,12 @@ func marshal(req interface{}) []byte {
 	return b
 }
 
-func response(conn net.Conn) []string {
+func response(conn *os.File) []string {
 	dec := json.NewDecoder(conn)
 	var outlines []string
 	err := dec.Decode(&outlines)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("response decode error:", err)
 	}
 	return outlines
 }

@@ -5,7 +5,6 @@ var quit chan<- bool
 func main() {
 	var q = make(chan bool)
 	quit = q
-	go listen()
+	go handle(connection())
 	<-q
-	listener.Close()
 }

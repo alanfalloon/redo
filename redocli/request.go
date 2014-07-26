@@ -27,7 +27,7 @@ func env() map[string]string {
 func cwd() string {
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("getcwd: ", err)
 	}
 	return cwd
 }

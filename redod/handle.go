@@ -3,32 +3,20 @@ package main
 import (
 	"encoding/json"
 	"io"
-	"net"
+	"os"
 )
 
-func handle(conn net.Conn) {
+func handle(conn *os.File) {
 	defer conn.Close()
 	defer forestall_reaping().Done()
-
-	log := logWrap("handle:", log)
-	log.Print("begin", conn)
-	defer log.Print("done", conn)
-
-	var quit = make(chan bool)
-	go reply(conn, fulfill(requests(conn)), quit)
-	<-quit
+	reply(conn, fulfill(requests(conn)))
 }
 
 type resp []string
 
-func reply(conn net.Conn, resps <-chan resp, quit chan<- bool) {
+func reply(conn *os.File, resps <-chan resp) {
 	defer conn.Close()
-	defer func() { quit <- true }()
-
 	log := logWrap("reply:", log)
-	log.Print("begin", conn)
-	defer log.Print("done", conn)
-
 	for resp := range resps {
 		b, err := json.Marshal(resp)
 		if err != nil {
@@ -38,20 +26,15 @@ func reply(conn net.Conn, resps <-chan resp, quit chan<- bool) {
 	}
 }
 
-func requests(conn net.Conn) <-chan Req {
+func requests(conn *os.File) <-chan Req {
 	var sink = make(chan Req, 1)
 	go func(sink chan<- Req) {
 		defer func() { close(sink) }()
-
 		log := logWrap("requests:", log)
-		log.Print("begin", conn)
-		defer log.Print("done", conn)
-
 		dec := json.NewDecoder(conn)
 		var req Req
 		var err error
 		for err = dec.Decode(&req); err == nil; err = dec.Decode(&req) {
-			log.Println("recieved", req)
 			sink <- req
 		}
 		if err != io.EOF {
