@@ -1,0 +1,19 @@
+# -*- mode: shell-script -*-
+(
+    OUT="$PWD"/"$3" &&
+    cd ../"$2" &&
+    go build -o "$OUT"
+)
+
+# Automatic dependancy generation by slurping the file-names out of
+# the debug symbols of the resulting binaries.
+objdump -g "$3" |
+sed -n -e '/^ The File Name Table/,/^$/p' |
+cut -d'	' -f5 |
+# Limit ourselves to files in the current repo
+sed -n -e "s#^$REDO_STARTDIR/##p" |
+sort -u |
+(
+    cd "$REDO_STARTDIR" &&
+    xargs redo-ifchange bin/_gobuild
+)
