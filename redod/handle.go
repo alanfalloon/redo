@@ -26,13 +26,13 @@ func reply(conn *os.File, resps <-chan resp) {
 	}
 }
 
-func requests(conn *os.File) <-chan Req {
-	var sink = make(chan Req, 1)
-	go func(sink chan<- Req) {
+func requests(conn *os.File) <-chan req {
+	var sink = make(chan req, 1)
+	go func(sink chan<- req) {
 		defer func() { close(sink) }()
 		log := logWrap("requests:", log)
 		dec := json.NewDecoder(conn)
-		var req Req
+		var req req
 		var err error
 		for err = dec.Decode(&req); err == nil; err = dec.Decode(&req) {
 			sink <- req

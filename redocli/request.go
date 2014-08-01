@@ -1,15 +1,14 @@
 package main
 
-import redod "github.com/alanfalloon/redo/redod"
-
 import (
+	"github.com/alanfalloon/redo/util"
 	"log"
 	"os"
 	"strings"
 )
 
-func request() redod.Req {
-	return redod.Req{env(), os.Args, cwd()}
+func request() util.Req {
+	return util.Req{env(), os.Args, cwd()}
 }
 
 func env() map[string]string {

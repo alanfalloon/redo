@@ -1,10 +1,10 @@
 package main
 
-func fulfill_one(req Req) resp {
+func fulfill_one(req req) resp {
 	return []string{"ok"}
 }
 
-func fulfill(reqs <-chan Req) <-chan resp {
+func fulfill(reqs <-chan req) <-chan resp {
 	var sink = make(chan resp, 1)
 	go func(sink chan<- resp) {
 		defer func() { close(sink) }()

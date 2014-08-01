@@ -1,7 +1,7 @@
 package main
 
-type Req struct {
-	Env  map[string]string "json:env"
-	Argv []string          "json:argv"
-	Cwd  string            "json:cwd"
-}
+import (
+	"github.com/alanfalloon/redo/util"
+)
+
+type req util.Req
