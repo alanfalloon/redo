@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/alanfalloon/redo/util"
 	"log"
 	"os"
 )
@@ -10,7 +11,10 @@ import (
 func main() {
 	log.SetPrefix(fmt.Sprint("redocli(", os.Getpid(), "): "))
 
-	conn := connect()
+	conn, err := util.Connect()
+	if err != nil {
+		_, conn = util.Launch("redod", nil, "")
+	}
 
 	conn.Write(marshal(request()))
 	display(response(conn))
