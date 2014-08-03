@@ -11,6 +11,6 @@ func main() {
 	quit = q
 	conn, err := util.Connect()
 	util.Check(err)
-	go handle(conn)
+	go handle(conn, "")
 	<-q
 }

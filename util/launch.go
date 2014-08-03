@@ -9,6 +9,7 @@ import (
 func Launch(exe string, args []string, cwd string) (cmd *exec.Cmd, conn *os.File) {
 	cmd = exec.Command(exe, args...)
 	cmd.Stderr = os.Stderr
+	cmd.Dir = cwd
 	us, them := socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
 	defer them.Close()
 	err := os.Setenv("REDO_FD", "3")

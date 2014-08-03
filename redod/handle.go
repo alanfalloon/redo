@@ -6,10 +6,10 @@ import (
 	"os"
 )
 
-func handle(conn *os.File) {
+func handle(conn *os.File, cwd string) {
 	defer conn.Close()
 	defer forestall_reaping().Done()
-	reply(conn, fulfill(requests(conn)))
+	reply(conn, fulfill(requests(conn), cwd))
 }
 
 type resp []string
