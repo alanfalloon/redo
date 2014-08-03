@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/alanfalloon/redo/util"
 	"io"
 	"os"
 )
@@ -12,7 +13,7 @@ func handle(conn *os.File, cwd string) {
 	reply(conn, fulfill(requests(conn), cwd))
 }
 
-type resp []string
+type resp util.Resp
 
 func reply(conn *os.File, resps <-chan resp) {
 	defer conn.Close()

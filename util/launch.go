@@ -1,13 +1,15 @@
 package util
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"syscall"
 )
 
-func Launch(exe string, args []string, cwd string) (cmd *exec.Cmd, conn *os.File) {
+func Launch(exe string, args []string, cwd string, out io.Writer) (cmd *exec.Cmd, conn *os.File) {
 	cmd = exec.Command(exe, args...)
+	cmd.Stdout = out
 	cmd.Stderr = os.Stderr
 	cmd.Dir = cwd
 	us, them := socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)

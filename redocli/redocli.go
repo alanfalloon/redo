@@ -13,7 +13,7 @@ func main() {
 
 	conn, err := util.Connect()
 	if err != nil {
-		_, conn = util.Launch("redod", nil, "")
+		_, conn = util.Launch("redod", nil, "", os.Stdout)
 	}
 
 	conn.Write(marshal(request()))
@@ -28,19 +28,19 @@ func marshal(req interface{}) []byte {
 	return b
 }
 
-func response(conn *os.File) []string {
+func response(conn *os.File) (resp util.Resp) {
 	dec := json.NewDecoder(conn)
-	var outlines []string
-	err := dec.Decode(&outlines)
+	err := dec.Decode(&resp)
 	if err != nil {
 		log.Fatal("response decode error:", err)
 	}
-	return outlines
+	return
 }
 
-func display(lines []string) {
-	out := log.New(os.Stdout, "", 0)
-	for _, line := range lines {
+func display(resp util.Resp) {
+	out := log.New(os.Stderr, "", 0)
+	for _, line := range resp.Errlines {
 		out.Println(line)
 	}
+	os.Exit(resp.ExitCode)
 }
