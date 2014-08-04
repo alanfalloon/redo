@@ -25,7 +25,8 @@ func fulfill_one(req req, base_cwd string) (resp resp) {
 		case nil:
 		case *exec.ExitError:
 			resp.ExitCode = 1
-			resp.Errlines = append(resp.Errlines, fmt.Sprintf("failed: %s%s: %s", cwd, tgt, e))
+			resp.Errlines = append(resp.Errlines,
+				fmt.Sprintf("failed: %s: %s", path.Join(cwd, tgt), e))
 		default:
 			util.Check(err)
 		}
