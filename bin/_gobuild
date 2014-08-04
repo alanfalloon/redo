@@ -1,4 +1,10 @@
 # -*- mode: shell-script -*-
+dirmsg() {
+    echo "$1" directory "\`$2'" >&2
+}
+dirmsg Entering "$2"
+trap "dirmsg Leaving $2" EXIT
+
 (
     OUT="$PWD"/"$3" &&
     cd ../"$2" &&
