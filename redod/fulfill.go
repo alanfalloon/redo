@@ -13,7 +13,8 @@ func fulfill_one(req req, base_cwd string) (resp resp) {
 		if !path.IsAbs(cwd) {
 			cwd = path.Join(base_cwd, cwd)
 		}
-		switch err := run(tgt+".do", cwd, tgt, tgt); e := err.(type) {
+		dofile, cwd, tgt, base := find_dofile(cwd, tgt)
+		switch err := run(dofile, cwd, tgt, base); e := err.(type) {
 		case nil:
 		case *exec.ExitError:
 			resp.ExitCode = 1
