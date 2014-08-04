@@ -14,6 +14,8 @@ func Launch(exe string, args []string, cwd string, out io.Writer) (cmd *exec.Cmd
 	cmd.Dir = cwd
 	us, them := socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
 	defer them.Close()
+	syscall.CloseOnExec(int(us.Fd()))
+	syscall.CloseOnExec(int(them.Fd()))
 	err := os.Setenv("REDO_FD", "3")
 	Check(err)
 	cmd.ExtraFiles = []*os.File{them}

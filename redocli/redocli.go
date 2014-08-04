@@ -29,6 +29,7 @@ func marshal(req interface{}) []byte {
 }
 
 func response(conn *os.File) (resp util.Resp) {
+	defer conn.Close()
 	dec := json.NewDecoder(conn)
 	err := dec.Decode(&resp)
 	if err != nil {
