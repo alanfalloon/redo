@@ -12,7 +12,9 @@ func fulfill_one(req req, base_cwd string) (resp resp) {
 	for _, tgtpath := range req.Argv[1:] {
 		log := logWrap(tgtpath+":", log)
 		cwd, tgt := path.Split(tgtpath)
-		cwd = base_cwd + cwd
+		if !path.IsAbs(cwd) {
+			cwd = path.Join(base_cwd, cwd)
+		}
 		args := []string{"-e", tgt + ".do", tgt, tgt, "tmp"}
 		log.Printf("cwd=%v tgt=%v args=%v", cwd, tgt, args)
 		out, err := os.Create("tmp2")
