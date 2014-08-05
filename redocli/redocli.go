@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	log.SetPrefix(fmt.Sprint("redocli(", os.Getpid(), "): "))
+	log.SetPrefix(fmt.Sprintf("redocli(%x) %v: ", os.Getpid(), os.Args))
 
 	conn, err := util.Connect()
 	if err != nil {

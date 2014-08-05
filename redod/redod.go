@@ -14,3 +14,7 @@ func main() {
 	go handle(conn, "")
 	<-q
 }
+
+func check(err error) {
+	util.Check(err)
+}
