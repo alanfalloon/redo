@@ -7,7 +7,10 @@ import (
 	"path"
 )
 
+
+
 func fulfill_one(req req, base_cwd string) (resp resp) {
+	_ = dbconn()
 	for _, tgtpath := range req.Argv[1:] {
 		cwd, tgt := path.Split(tgtpath)
 		if !path.IsAbs(cwd) {
