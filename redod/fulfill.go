@@ -7,9 +7,7 @@ import (
 	"path"
 )
 
-
-
-func fulfill_one(req req, base_cwd string) (resp resp) {
+func fulfill_one(req req, base_cwd string, target int) (resp resp) {
 	_ = dbconn()
 	for _, tgtpath := range req.Argv[1:] {
 		cwd, tgt := path.Split(tgtpath)
@@ -17,8 +15,9 @@ func fulfill_one(req req, base_cwd string) (resp resp) {
 			cwd = path.Join(base_cwd, cwd)
 		}
 		dofile, cwd, tgt, base := find_dofile(cwd, tgt)
-		switch err := run(dofile, cwd, tgt, base); e := err.(type) {
+		switch dep, err := run(dofile, cwd, tgt, base); e := err.(type) {
 		case nil:
+			insert_dep(target, dep)
 		case *exec.ExitError:
 			resp.ExitCode = 1
 			resp.Errlines = append(resp.Errlines,
@@ -31,12 +30,12 @@ func fulfill_one(req req, base_cwd string) (resp resp) {
 	return
 }
 
-func fulfill(reqs <-chan req, cwd string) <-chan resp {
+func fulfill(reqs <-chan req, cwd string, target int) <-chan resp {
 	var sink = make(chan resp, 1)
 	go func(sink chan<- resp) {
 		defer func() { close(sink) }()
 		for req := range reqs {
-			sink <- fulfill_one(req, cwd)
+			sink <- fulfill_one(req, cwd, target)
 		}
 	}(sink)
 	return sink

@@ -11,10 +11,13 @@ func main() {
 	quit = q
 	conn, err := util.Connect()
 	util.Check(err)
-	go handle(conn, "")
+	go handle(conn, "", -1)
 	<-q
 }
 
-func check(err error) {
+func check(err error, data ...interface{}) {
+	if len(data) > 0 {
+		log.Print(data...)
+	}
 	util.Check(err)
 }
