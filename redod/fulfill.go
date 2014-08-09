@@ -7,8 +7,8 @@ import (
 	"path"
 )
 
-func fulfill_one(req req, base_cwd string, target int) (resp resp) {
-	_ = dbconn()
+func old_fulfill(req req, base_cwd string, target target) {
+	var resp resp
 	for _, tgtpath := range req.Argv[1:] {
 		cwd, tgt := path.Split(tgtpath)
 		if !path.IsAbs(cwd) {
@@ -30,12 +30,13 @@ func fulfill_one(req req, base_cwd string, target int) (resp resp) {
 	return
 }
 
-func fulfill(reqs <-chan req, cwd string, target int) <-chan resp {
+func fulfill(reqs <-chan req, cwd string, parent target) <-chan resp {
 	var sink = make(chan resp, 1)
 	go func(sink chan<- resp) {
 		defer func() { close(sink) }()
 		for req := range reqs {
-			sink <- fulfill_one(req, cwd, target)
+			cmd := path.Base(req.Argv[0])
+			sink <- commands[cmd](req, cwd, parent)
 		}
 	}(sink)
 	return sink

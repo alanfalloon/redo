@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-func run(dofile, cwd, tgt, base string) (tgtid int, err error) {
+func run(dofile, cwd, tgt, base string) (tgtid target, err error) {
 	tgtpath := path.Join(cwd, tgt)
 	log := logWrap("run "+tgtpath+":", log)
 	tgtid = insert_build_target(tgtpath)

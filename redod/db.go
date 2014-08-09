@@ -101,7 +101,7 @@ PRAGMA user_version = 1;
 	}
 }
 
-func insert_build_target(path string) int {
+func insert_build_target(path string) target {
 	conn := dbconn()
 	r := conn.xExec(`
 INSERT OR REPLACE
@@ -111,16 +111,16 @@ INSERT OR REPLACE
 		path, generation, "build")
 	id, err := r.LastInsertId()
 	check(err, path)
-	return int(id)
+	return target(id)
 }
 
-func update_target_error(tgtid int, err error) {
+func update_target_error(tgtid target, err error) {
 	conn := dbconn()
 	conn.xExec(`UPDATE files SET step=? WHERE id=?;`,
 		"error: "+err.Error(), tgtid)
 }
 
-func update_target_done(tgtid int, st os.FileInfo) {
+func update_target_done(tgtid target, st os.FileInfo) {
 	conn := dbconn()
 	var j []byte
 	if st != nil {
@@ -136,7 +136,7 @@ func update_target_done(tgtid int, st os.FileInfo) {
 		"updated", string(j), tgtid)
 }
 
-func insert_dep(tgt, dep int) {
+func insert_dep(tgt, dep target) {
 	if tgt == -1 {
 		return
 	}
