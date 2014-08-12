@@ -1,5 +1,13 @@
 package main
 
+type target int
+
+type targetResult struct {
+	name    string
+	target  target
+	outcome state
+}
+
 type state int
 
 const (

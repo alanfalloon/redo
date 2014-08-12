@@ -24,12 +24,17 @@ func (db *db) xQuery(query string, args ...interface{}) *sql.Rows {
 	return r
 }
 
+func (db *db) xQueryRow(query string, args ...interface{}) *sql.Row {
+	return (*sql.DB)(db).QueryRow(query, args...)
+}
+
 func dbconn() *db {
 	_conn, err := sql.Open("sqlite3", "file:.redo.db?mode=rwc&vfs=unix-excl")
 	check(err)
 	conn := (*db)(_conn)
 	conn.xExec("PRAGMA journal_mode = WAL;")
 	conn.xExec("PRAGMA foreign_keys = ON;")
+	conn.xExec("PRAGMA temp_store = MEMORY;")
 	dbinitonce.Do(func() { dbinit(conn) })
 	return conn
 }
@@ -93,7 +98,7 @@ PRAGMA user_version = 1;`}
 	}
 }
 
-func insert_build_target(path string) int {
+func insert_build_target(path string) target {
 	conn := dbconn()
 	r := conn.xExec(`
 INSERT OR REPLACE
@@ -103,16 +108,16 @@ INSERT OR REPLACE
 		path, generation, NEEDS_UPDATE)
 	id, err := r.LastInsertId()
 	check(err, path)
-	return int(id)
+	return target(id)
 }
 
-func update_target_error(tgtid int, err error) {
+func update_target_error(tgtid target, err error) {
 	conn := dbconn()
 	conn.xExec(`UPDATE files SET step=? WHERE id=?;`,
 		ERROR, tgtid)
 }
 
-func update_target_done(tgtid int, st os.FileInfo) {
+func update_target_done(tgtid target, st os.FileInfo) {
 	conn := dbconn()
 	var j []byte
 	if st != nil {
@@ -128,7 +133,7 @@ func update_target_done(tgtid int, st os.FileInfo) {
 		UPDATED, string(j), tgtid)
 }
 
-func insert_dep(tgt, dep int) {
+func insert_dep(tgt, dep target) {
 	if tgt == -1 {
 		return
 	}
