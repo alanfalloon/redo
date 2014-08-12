@@ -73,29 +73,21 @@ CREATE TABLE files (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 path TEXT UNIQUE,
 generation INTEGER,
-step TEXT,
-stat TEXT
-);
-`,
+step INTEGER,
+stat TEXT);`,
 		`
 CREATE TABLE deps (
 to_make INTEGER REFERENCES files(id) ON UPDATE CASCADE ON DELETE CASCADE,
 you_need INTEGER REFERENCES files(id) ON UPDATE CASCADE ON DELETE CASCADE,
 relation TEXT,
-generation INTEGER NOT NULL
-);
-`,
+generation INTEGER NOT NULL);`,
 		`
 CREATE TABLE config (
-generation INTEGER NOT NULL
-);
-`,
+generation INTEGER NOT NULL);`,
 		`
-INSERT INTO config VALUES(0);
-`,
+INSERT INTO config VALUES(0);`,
 		`
-PRAGMA user_version = 1;
-`}
+PRAGMA user_version = 1;`}
 	for _, cmd := range initcmd {
 		conn.xExec(cmd)
 	}
@@ -108,7 +100,7 @@ INSERT OR REPLACE
  INTO files(path, generation, step)
  VALUES(?, ?, ?)
 `,
-		path, generation, "build")
+		path, generation, NEEDS_UPDATE)
 	id, err := r.LastInsertId()
 	check(err, path)
 	return int(id)
@@ -117,7 +109,7 @@ INSERT OR REPLACE
 func update_target_error(tgtid int, err error) {
 	conn := dbconn()
 	conn.xExec(`UPDATE files SET step=? WHERE id=?;`,
-		"error: "+err.Error(), tgtid)
+		ERROR, tgtid)
 }
 
 func update_target_done(tgtid int, st os.FileInfo) {
@@ -133,7 +125,7 @@ func update_target_done(tgtid int, st os.FileInfo) {
 		check(err, tgtid, st)
 	}
 	conn.xExec(`UPDATE files SET step=?, stat=? WHERE id=?;`,
-		"updated", string(j), tgtid)
+		UPDATED, string(j), tgtid)
 }
 
 func insert_dep(tgt, dep int) {
