@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	_ "github.com/mattn/go-sqlite3"
 	"os"
 	"sync"
@@ -26,6 +25,10 @@ func (db *db) xQuery(query string, args ...interface{}) *sql.Rows {
 
 func (db *db) xQueryRow(query string, args ...interface{}) *sql.Row {
 	return (*sql.DB)(db).QueryRow(query, args...)
+}
+
+func (db *db) Close() {
+	(*sql.DB)(db).Close()
 }
 
 func dbconn() *db {
@@ -98,20 +101,7 @@ PRAGMA user_version = 1;`}
 	}
 }
 
-func insert_build_target(path string) target {
-	conn := dbconn()
-	r := conn.xExec(`
-INSERT OR REPLACE
- INTO files(path, generation, step)
- VALUES(?, ?, ?)
-`,
-		path, generation, NEEDS_UPDATE)
-	id, err := r.LastInsertId()
-	check(err, path)
-	return target(id)
-}
-
-func update_target_error(tgtid target, err error) {
+func update_target_error(tgtid target) {
 	conn := dbconn()
 	conn.xExec(`UPDATE files SET step=? WHERE id=?;`,
 		ERROR, tgtid)
@@ -119,18 +109,13 @@ func update_target_error(tgtid target, err error) {
 
 func update_target_done(tgtid target, st os.FileInfo) {
 	conn := dbconn()
-	var j []byte
 	if st != nil {
-		stat := map[string]interface{}{
-			"size":  st.Size(),
-			"mode":  st.Mode(),
-			"mtime": st.ModTime()}
-		var err error
-		j, err = json.Marshal(stat)
-		check(err, tgtid, st)
+		conn.xExec(`UPDATE files SET step=?, stat=? WHERE id=?;`,
+			UPDATED, st.ModTime(), tgtid)
+	} else {
+		conn.xExec(`UPDATE files SET step=?, stat=NULL WHERE id=?;`,
+			UPDATED, tgtid)
 	}
-	conn.xExec(`UPDATE files SET step=?, stat=? WHERE id=?;`,
-		UPDATED, string(j), tgtid)
 }
 
 func insert_dep(tgt, dep target) {

@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-func find_dofile(_cwd, _tgt string) (dofile, cwd, tgt, base string) {
-	cwd, tgt = _cwd, _tgt
+func find_dofile(tgtpath string) (dofile, cwd, tgt, base string) {
+	cwd, tgt = path.Split(tgtpath)
 	dofile = tgt + ".do"
 	base = tgt
 	if exist(cwd, dofile) {

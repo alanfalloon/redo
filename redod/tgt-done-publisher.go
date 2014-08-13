@@ -2,6 +2,7 @@ package main
 
 import (
 	"sync"
+	"database/sql"
 )
 
 var tgt_done_pub chan<- tgt_done_cmd
@@ -26,6 +27,10 @@ func demand_target(path string, ret_to chan<- targetResult, at_least state) {
 	done_pub_once.Do(done_pub_start)
 	tgt_done_pub <- demand{path, ret_to, at_least}
 }
+func poke_publisher() {
+	done_pub_once.Do(done_pub_start)
+	tgt_done_pub <- notify_done{}
+}
 
 var done_pub_once sync.Once
 
@@ -48,21 +53,32 @@ CREATE TEMPORARY TABLE demands (
 }
 
 func (dmnd demand) Exec(db *db, subscribers addressbook) addressbook {
-	var file, gen int
+	var file target
+	var gen int
 	var step state
-	var x string
 	var index *int
 	err := db.xQueryRow(`
 SELECT id, idx, generation, step
 FROM files LEFT JOIN demands ON file = id
-WHERE path = ?`, dmnd.path).Scan(&file, &index, &gen, &x)
-	check(err)
-	step = ERROR
+WHERE path = ?`, dmnd.path).Scan(&file, &index, &gen, &step)
+	if err == sql.ErrNoRows {
+		res := db.xExec(`
+INSERT INTO files(path, generation, step) VALUES(?, ?, ?)`,
+			dmnd.path, generation, dmnd.at_least)
+		id, err := res.LastInsertId()
+		check(err)
+		file = target(id)
+		gen = generation
+		step = dmnd.at_least
+		poke_scanner()
+	} else {
+		check(err)
+	}
 	if index == nil {
 		if gen != generation || step < dmnd.at_least {
 			db.xExec(`
 INSERT OR REPLACE INTO files(id, path, generation, step) VALUES(?, ?, ? ,?);`,
-				file, dmnd.path, generation, step)
+				file, dmnd.path, generation, dmnd.at_least)
 			poke_scanner()
 		}
 		index = new(int)
