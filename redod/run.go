@@ -7,10 +7,9 @@ import (
 	"syscall"
 )
 
-func run(dofile, cwd, tgt, base string) (tgtid target, err error) {
+func run(dofile, cwd, tgt, base string, tgtid target) (err error) {
 	tgtpath := path.Join(cwd, tgt)
 	log := logWrap("run "+tgtpath+":", log)
-	tgtid = insert_build_target(tgtpath)
 	tmpout := randfilename(cwd + "/outfile.")
 	stdout := tmpfile(cwd + "/outstd.")
 	defer os.Remove(stdout.Name())
@@ -28,7 +27,7 @@ func run(dofile, cwd, tgt, base string) (tgtid target, err error) {
 	go handle(conn, cwd, tgtid)
 	err = cmd.Wait()
 	if err != nil {
-		update_target_error(tgtid, err)
+		update_target_error(tgtid)
 		return
 	}
 	st_stdout, err := stdout.Stat()

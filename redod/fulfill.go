@@ -1,12 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"github.com/alanfalloon/redo/util"
-	"os/exec"
 	"path"
 )
 
+/*
 func old_fulfill(req req, base_cwd string, target target) {
 	var resp resp
 	for _, tgtpath := range req.Argv[1:] {
@@ -29,6 +27,7 @@ func old_fulfill(req req, base_cwd string, target target) {
 	}
 	return
 }
+*/
 
 func fulfill(reqs <-chan req, cwd string, parent target) <-chan resp {
 	var sink = make(chan resp, 1)
