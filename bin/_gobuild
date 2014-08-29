@@ -1,9 +1,17 @@
 # -*- mode: shell-script -*-
+
+checkdep() {
+    [[ -d ${GOPATH%%:*}/src/$1 ]] || go get "$1"
+}
+checkdep github.com/mattn/go-sqlite3
+checkdep github.com/stretchr/testify
+
 dirmsg() {
     echo "$1" directory "\`$2'" >&2
 }
 dirmsg Entering "$2"
 trap "dirmsg Leaving $2" EXIT
+
 
 (
     OUT="$PWD"/"$3" &&
