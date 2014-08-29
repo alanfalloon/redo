@@ -12,7 +12,7 @@ func redo_ifchange(req req, cwd string, parent target) (resp resp) {
 		if !path.IsAbs(tgtpath) {
 			tgtpath = path.Join(cwd, tgtpath)
 		}
-		demand_target(tgtpath, result_chan, NEEDS_SCAN)
+		pub.demand_target(tgtpath, result_chan)
 	}
 	for ; n > 0; n-- {
 		r := <-result_chan

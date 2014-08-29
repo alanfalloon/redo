@@ -19,3 +19,17 @@ const (
 	ERROR
 	MISSING
 )
+
+func (t target) demand(db *db) {
+	db.xExec(`
+UPDATE files
+SET generation=?, step=?
+WHERE id = ?
+AND (generation < ? OR step < ?);`,
+		db.generation, NEEDS_SCAN, t, db.generation, NEEDS_SCAN)
+}
+
+func (t target) setStep(db *db, step state) {
+	db.xExec(`
+UPDATE files SET generation = ?, step = ? WHERE id = ?;`, db.generation, NOTHING_TO_DO, t)
+}

@@ -29,6 +29,7 @@ var scanner_wake chan<- bool
 var scanner_once sync.Once
 
 func scanner_start() {
+	panic("stop")
 	scanner_c := make(chan bool, 1)
 	planner_c := make(chan bool, 1)
 	scanner_wake = planner_c
@@ -81,10 +82,10 @@ WHERE id IN (
   JOIN files AS c ON deps.you_need = c.id
   WHERE p.generation = ?
   AND c.generation != p.generation);`,
-		generation, NEEDS_SCAN, generation)
+		db.generation, NEEDS_SCAN, db.generation)
 	n, err := res.RowsAffected()
 	check(err)
-	log.Printf("Pulled %d files in to generation %d", n, generation)
+	log.Printf("Pulled %d files in to generation %d", n, db.generation)
 	return n > 0
 }
 func scan_one(db *db) bool {
@@ -102,7 +103,7 @@ AND NOT EXISTS (
   FROM files AS child JOIN deps ON child.id = deps.you_need
   WHERE deps.to_make = parent.id
   AND (child.generation != parent.generation OR child.step = ?));`,
-		generation, NEEDS_SCAN, NEEDS_SCAN)
+		db.generation, NEEDS_SCAN, NEEDS_SCAN)
 	var had_data bool
 	for rows.Next() {
 		had_data = true

@@ -9,6 +9,7 @@ var quit chan<- bool
 func main() {
 	var q = make(chan bool)
 	quit = q
+	pub = &publisher{db: dbconn()}
 	conn, err := util.Connect()
 	util.Check(err)
 	go handle(conn, "", -1)

@@ -2,10 +2,7 @@ package main
 
 import (
 	"sync"
-	"database/sql"
 )
-
-var tgt_done_pub chan<- tgt_done_cmd
 
 type subscriber chan<- targetResult
 type contacts []subscriber
@@ -15,40 +12,44 @@ type tgt_done_cmd interface {
 	Exec(db *db, book addressbook) addressbook
 }
 
+type publisher struct {
+	*db
+	tgt_done_pub chan<- tgt_done_cmd
+	done_pub_once sync.Once
+}
+
+var pub *publisher
+
 type demand struct {
 	path     string
 	ret_to   subscriber
-	at_least state
 }
 
 type notify_done struct{}
 
-func demand_target(path string, ret_to chan<- targetResult, at_least state) {
-	done_pub_once.Do(done_pub_start)
-	tgt_done_pub <- demand{path, ret_to, at_least}
+func (pub *publisher) demand_target(path string, ret_to chan<- targetResult) {
+	pub.done_pub_once.Do(pub.done_pub_start)
+	pub.tgt_done_pub <- demand{path, ret_to}
 }
-func poke_publisher() {
-	done_pub_once.Do(done_pub_start)
-	tgt_done_pub <- notify_done{}
+func (pub *publisher) poke_publisher() {
+	pub.done_pub_once.Do(pub.done_pub_start)
+	pub.tgt_done_pub <- notify_done{}
 }
 
-var done_pub_once sync.Once
-
-func done_pub_start() {
+func (pub *publisher) done_pub_start() {
 	c := make(chan tgt_done_cmd)
-	tgt_done_pub = c
-	go done_pub_main(c)
+	pub.tgt_done_pub = c
+	go pub.done_pub_main(c)
 }
-func done_pub_main(demands <-chan tgt_done_cmd) {
+func (pub publisher) done_pub_main(demands <-chan tgt_done_cmd) {
 	var subscribers addressbook
-	db := dbconn()
-	db.xExec(`
+	pub.db.xExec(`
 CREATE TEMPORARY TABLE demands (
    file INTEGER NOT NULL,
    idx INTEGER NOT NULL);
 `)
 	for dmnd := range demands {
-		subscribers = dmnd.Exec(db, subscribers)
+		subscribers = dmnd.Exec(pub.db, subscribers)
 	}
 }
 
@@ -57,30 +58,13 @@ func (dmnd demand) Exec(db *db, subscribers addressbook) addressbook {
 	var gen int
 	var step state
 	var index *int
-	err := db.xQueryRow(`
+	err := db.QueryRow(`
 SELECT id, idx, generation, step
 FROM files LEFT JOIN demands ON file = id
 WHERE path = ?`, dmnd.path).Scan(&file, &index, &gen, &step)
-	if err == sql.ErrNoRows {
-		res := db.xExec(`
-INSERT INTO files(path, generation, step) VALUES(?, ?, ?)`,
-			dmnd.path, generation, dmnd.at_least)
-		id, err := res.LastInsertId()
-		check(err)
-		file = target(id)
-		gen = generation
-		step = dmnd.at_least
-		poke_scanner()
-	} else {
-		check(err)
-	}
+	check(err)
 	if index == nil {
-		if gen != generation || step < dmnd.at_least {
-			db.xExec(`
-INSERT OR REPLACE INTO files(id, path, generation, step) VALUES(?, ?, ? ,?);`,
-				file, dmnd.path, generation, dmnd.at_least)
-			poke_scanner()
-		}
+		file.demand(db)
 		index = new(int)
 		*index = len(subscribers)
 		db.xExec(`
@@ -97,7 +81,7 @@ func (_ notify_done) Exec(db *db, ab addressbook) addressbook {
 SELECT file, path, idx, step
 FROM files JOIN demands ON file = id
 WHERE step >= ?
-ORDERBY index DESC`)
+ORDER BY idx DESC`, NOTHING_TO_DO)
 	for rows.Next() {
 		var file target
 		var path string

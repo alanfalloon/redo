@@ -37,7 +37,7 @@ func builder_main(wake <-chan bool) {
 func build_one(db *db) bool {
 	var path string
 	var id target
-	err := db.xQueryRow(`
+	err := db.QueryRow(`
 SELECT parent.path, parent.id
 FROM files AS parent
 WHERE parent.generation = ?
@@ -47,13 +47,13 @@ AND NOT EXISTS (
   FROM files AS child JOIN deps ON child.id = deps.you_need
   WHERE deps.to_make = parent.id
   AND (child.generation != parent.generation OR child.step <= ?));`,
-		generation, NEEDS_UPDATE, NEEDS_UPDATE).Scan(&path, &id)
+		db.generation, NEEDS_UPDATE, NEEDS_UPDATE).Scan(&path, &id)
 	if err == sql.ErrNoRows {
 		return false
 	}
 	dofile, cwd, tgt, base := find_dofile(path)
 	err = run(dofile, cwd, tgt, base, id)
 	check(err)
-	poke_publisher()
+	pub.poke_publisher()
 	return true
 }

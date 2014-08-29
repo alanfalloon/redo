@@ -9,44 +9,37 @@ import (
 
 var dbinitonce sync.Once
 
-type db sql.DB
+type db struct {
+	*sql.DB
+	generation int
+}
 
 func (db *db) xExec(query string, args ...interface{}) sql.Result {
-	r, err := (*sql.DB)(db).Exec(query, args...)
+	r, err := db.DB.Exec(query, args...)
 	check(err, query, args)
 	return r
 }
 
 func (db *db) xQuery(query string, args ...interface{}) *sql.Rows {
-	r, err := (*sql.DB)(db).Query(query, args...)
+	r, err := db.DB.Query(query, args...)
 	check(err, query)
 	return r
-}
-
-func (db *db) xQueryRow(query string, args ...interface{}) *sql.Row {
-	return (*sql.DB)(db).QueryRow(query, args...)
-}
-
-func (db *db) Close() {
-	(*sql.DB)(db).Close()
 }
 
 func dbconn() *db {
 	_conn, err := sql.Open("sqlite3", "file:.redo.db?mode=rwc&vfs=unix-excl")
 	check(err)
-	conn := (*db)(_conn)
+	conn := db{_conn, 0}
 	conn.xExec("PRAGMA journal_mode = WAL;")
 	conn.xExec("PRAGMA foreign_keys = ON;")
 	conn.xExec("PRAGMA temp_store = MEMORY;")
 	dbinitonce.Do(func() { dbinit(conn) })
-	return conn
+	return &conn
 }
 
 const _DBVERSION = 1
 
-var generation int
-
-func dbinit(conn *db) {
+func dbinit(conn db) {
 	rows := conn.xQuery("PRAGMA user_version;", nil)
 	if !rows.Next() {
 		panic("empty user_version")
@@ -66,16 +59,11 @@ func dbinit(conn *db) {
 		panic(version)
 	}
 	// Read the generation counter
-	rows = conn.xQuery(`SELECT generation FROM config`)
-	if !rows.Next() {
-		panic("empty config")
-	}
-	err = rows.Scan(&generation)
+	err = conn.QueryRow(`SELECT generation FROM config`).Scan(&conn.generation)
 	check(err)
-	rows.Close()
 }
 
-func dbcreate(conn *db) {
+func dbcreate(conn db) {
 	initcmd := []string{`
 CREATE TABLE files (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,6 +87,15 @@ PRAGMA user_version = 1;`}
 	for _, cmd := range initcmd {
 		conn.xExec(cmd)
 	}
+}
+
+func (conn db) target(path string) target {
+	res := conn.xExec(`
+INSERT OR REPLACE INTO files(path, generation, step) VALUES(?, ? ,?);`,
+		path, conn.generation, NEEDS_SCAN)
+	id, err := res.LastInsertId()
+	check(err)
+	return target(id)
 }
 
 func update_target_error(tgtid target) {
@@ -128,5 +125,5 @@ INSERT
  INTO deps(to_make, you_need, relation, generation)
  VALUES(?, ?, "ifchange", ?)
 `,
-		tgt, dep, generation)
+		tgt, dep, conn.generation)
 }
