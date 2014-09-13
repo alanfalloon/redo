@@ -1,8 +1,8 @@
 package tgt
 
 
-func Claim(path string, tgt T) {
-	inbox <- claimtgtreq{path, tgt}
+func (t tgtthread) Claim(path string, tgt T) {
+	t.inbox <- claimtgtreq{path, tgt}
 }
 type claimtgtreq struct {
 	path string

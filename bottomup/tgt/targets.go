@@ -1,5 +1,10 @@
 package tgt
 
+type TgtsI interface {
+	Watch(path string, resp Observer, fac Factory)
+	Claim(path string, tgt T)
+}
+
 type T interface {
 	Watch(alias string, resp Observer)
 }

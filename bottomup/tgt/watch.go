@@ -1,7 +1,7 @@
 package tgt
 
-func Watch(path string, resp Observer, fac Factory) {
-	inbox <- tgtgetreq{path, resp, fac}
+func (t tgtthread) Watch(path string, resp Observer, fac Factory) {
+	t.inbox <- tgtgetreq{path, resp, fac}
 }
 
 type tgtgetreq struct {
