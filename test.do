@@ -1,5 +1,5 @@
 redo-ifchange _all
-for D in redocli util redod
+for D in redocli util redod bottomup
 do
     (
         cd $D
