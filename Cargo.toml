@@ -4,3 +4,12 @@ version = "0.1.0"
 authors = ["Alan Falloon <alan.falloon@gmail.com>"]
 
 [dependencies]
+libc = "^0.2"
+rmp = "^0.7"
+rmp-serialize = "^0.7"
+rustc-serialize = "^0.3"
+unix_socket = "^0.5"
+
+[dev-dependencies]
+quickcheck = "^0.2"
+#quickcheck_macros = "0.2.25"
