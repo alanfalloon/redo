@@ -1,0 +1,6 @@
+[package]
+name = "redo"
+version = "0.1.0"
+authors = ["Alan Falloon <alan.falloon@gmail.com>"]
+
+[dependencies]
