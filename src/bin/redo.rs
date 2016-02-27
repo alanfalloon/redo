@@ -1,13 +1,10 @@
 extern crate redo;
-extern crate rmp;
 extern crate rmp_serialize as msgpack;
 extern crate rustc_serialize;
 extern crate unix_socket;
-use msgpack::decode::Error::InvalidMarkerRead;
-use msgpack::{Decoder, Encoder};
-use redo::protocol::{Operation, Reply, Request, get_sock_path};
-use rmp::decode::ReadError::UnexpectedEOF;
-use rustc_serialize::{Decodable, Encodable};
+use msgpack::Encoder;
+use redo::protocol::{Operation, Reply, Request, get_sock_path, StreamDecoder};
+use rustc_serialize::Encodable;
 use std::net::Shutdown;
 use std::path::PathBuf;
 use std::process::Command;
@@ -37,17 +34,9 @@ fn main() {
         }
     }
     stream.shutdown(Shutdown::Write).unwrap();
-    let mut decoder = Decoder::new(&mut stream);
-    loop {
-        let res: Reply = match Decodable::decode(&mut decoder) {
-            Ok(res) => res,
-            Err(InvalidMarkerRead(UnexpectedEOF)) => break,
-            Err(e) => {
-                println!("Unexpected Error: {:?}", e);
-                break;
-            },
-        };
-        println!("Response {:?}", res);
+    for res in StreamDecoder::new(&mut stream) {
+        let res: Reply = res.unwrap();
+        println!("{:?}", res);
     }
 }
 

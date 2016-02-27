@@ -4,11 +4,9 @@ extern crate rmp;
 extern crate rmp_serialize as msgpack;
 extern crate rustc_serialize;
 extern crate unix_socket;
-use msgpack::decode::Error::InvalidMarkerRead;
-use msgpack::{Decoder, Encoder};
-use redo::protocol::{Request, Reply, get_sock_path};
-use rmp::decode::ReadError::UnexpectedEOF;
-use rustc_serialize::{Decodable, Encodable};
+use msgpack::Encoder;
+use redo::protocol::{Request, Reply, get_sock_path, StreamDecoder};
+use rustc_serialize::Encodable;
 use std::fs::{create_dir_all, remove_file};
 use std::sync::mpsc::channel;
 use std::thread::spawn;
@@ -38,24 +36,18 @@ fn daemonize() -> Result<(), std::io::Error> {
     }
 }
 
-fn handle(mut stream: UnixStream) {
-    let mut decoder = Decoder::new(stream.try_clone().unwrap());
+fn handle(mut stream_tx: UnixStream) {
+    let mut stream_rx = stream_tx.try_clone().unwrap();
+    let decoder = StreamDecoder::new(&mut stream_rx);
     let (res_tx, res_rx) = channel::<Reply>();
     let responder = spawn(move || {
-        let mut encoder = Encoder::new(&mut stream);
+        let mut encoder = Encoder::new(&mut stream_tx);
         for res in res_rx {
             res.encode(&mut encoder).unwrap();
         }
     });
-    loop {
-        let req: Request = match Decodable::decode(&mut decoder) {
-            Ok(req) => req,
-            Err(InvalidMarkerRead(UnexpectedEOF)) => break,
-            Err(e) => {
-                println!("Unexpected Error: {:?}", e);
-                break;
-            },
-        };
+    for req in decoder {
+        let req: Request = req.unwrap();
         let res_tx = res_tx.clone();
         spawn(move ||{
             let res = Reply { id: req.id, target: req.target.clone() };
