@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::result::Result;
 use std::marker::PhantomData;
 
-#[derive(RustcEncodable, RustcDecodable, PartialEq, Debug)]
+#[derive(RustcEncodable, RustcDecodable, PartialEq, Debug, Copy, Clone)]
 pub enum Operation {
     RedoIfChange,
     RedoIfCreate,
@@ -39,7 +39,7 @@ fn operation_from_string(){
     assert_eq!(None, Operation::from_str("redod"));
 }
 
-#[derive(RustcEncodable, RustcDecodable, PartialEq, Debug)]
+#[derive(RustcEncodable, RustcDecodable, PartialEq, Debug, Clone)]
 pub struct Request {
     pub id: u32,
     pub op: Operation,
@@ -52,7 +52,7 @@ impl Request {
     }
 }
 
-#[derive(RustcEncodable, RustcDecodable, PartialEq, Debug)]
+#[derive(RustcEncodable, RustcDecodable, PartialEq, Debug, Clone)]
 pub struct Reply {
     pub id: u32,
     pub target: PathBuf,
