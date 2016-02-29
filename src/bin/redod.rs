@@ -8,9 +8,13 @@ use msgpack::Encoder;
 use redo::protocol::{Request, Reply, get_sock_path, StreamDecoder};
 use rustc_serialize::Encodable;
 use std::fs::{create_dir_all, remove_file};
+use std::io::Write;
+use std::sync::atomic::{ATOMIC_USIZE_INIT, AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
 use std::thread::spawn;
 use unix_socket::{UnixListener, UnixStream};
+
+static CONNS: AtomicUsize = ATOMIC_USIZE_INIT;
 
 fn main() {
     let sock_path = get_sock_path();
@@ -21,8 +25,17 @@ fn main() {
     daemonize().unwrap();
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        spawn(|| handle(stream));
+        CONNS.fetch_add(1, Ordering::AcqRel);
+        spawn(|| {
+            handle(stream);
+            if CONNS.fetch_sub(1, Ordering::AcqRel) == 1 {
+                let stderr = std::io::stderr();
+                write!(stderr.lock(), "Goodbye.").unwrap();
+                std::process::exit(0);
+            }
+        });
     }
+    unreachable!()
 }
 
 fn daemonize() -> Result<(), std::io::Error> {
