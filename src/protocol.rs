@@ -11,8 +11,10 @@ use std::fmt;
 use std::io::Read;
 use std::iter::Iterator;
 use std::marker::PhantomData;
-use std::path::PathBuf;
+use std::path::{Path,PathBuf};
+use std::sync::Arc;
 use std::result::Result;
+use super::{State, Fs, cmd};
 
 #[derive(RustcEncodable, RustcDecodable, PartialEq, Debug, Copy, Clone)]
 pub enum Operation {
@@ -51,16 +53,33 @@ impl Request {
     pub fn new(id: u32, op: Operation, target: PathBuf) -> Request {
         Request{ id: id, op: op, target: target}
     }
+
+    pub fn handle<T: Fs>(&self, world: Arc<T>) -> Result<Reply, cmd::CmdError> {
+        let handler: fn(Arc<T>, &Path) -> cmd::CmdResult = match self.op {
+            Operation::Redo => cmd::redo,
+            Operation::RedoIfChange => cmd::redo_ifchange,
+            Operation::RedoIfCreate => cmd::redo_ifcreate,
+        };
+        let (target, state) = try!(handler(world, &self.target));
+        Ok(Reply::new(self.id, target, state))
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+pub enum RequestError {
 }
 
 #[derive(RustcEncodable, RustcDecodable, PartialEq, Debug, Clone)]
 pub struct Reply {
     pub id: u32,
     pub target: PathBuf,
+    pub state: State,
 }
 
 impl Reply {
-    pub fn new(id: u32, target: PathBuf) -> Reply { Reply{id: id, target: target} }
+    pub fn new(id: u32, target: PathBuf, state: State) -> Reply {
+        Reply{id: id, target: target, state: state}
+    }
 }
 
 impl fmt::Display for Reply {

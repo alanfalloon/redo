@@ -8,6 +8,7 @@ extern crate rmp_serialize as msgpack;
 extern crate rustc_serialize;
 extern crate unix_socket;
 use msgpack::Encoder;
+use redo::World;
 use redo::protocol::{Request, Reply, get_sock_path, StreamDecoder};
 use rustc_serialize::Encodable;
 use std::fs::{create_dir_all, remove_file};
@@ -26,6 +27,7 @@ fn main() {
     let listener = UnixListener::bind(&sock_path)
         .unwrap_or_else(|e| panic!("{}: {}", sock_path.display(), e));
     daemonize().unwrap();
+    let world = World::new();
     let conn_count = ConnCount::new(|| {
         debug!("Goodbye.");
         std::process::exit(0);
@@ -33,10 +35,11 @@ fn main() {
     for (conn_id, stream) in listener.incoming().enumerate() {
         let stream = stream.unwrap();
         debug!("New connection {}.", &conn_id);
+        let world = world.clone();
         let conn_count = conn_count.clone();
         spawn(move || {
             let _conn_ref = ConnRef::new(conn_count);
-            handle(stream);
+            handle(world, stream);
             debug!("Done connection {}.", conn_id);
         });
     }
@@ -55,7 +58,7 @@ fn daemonize() -> Result<(), std::io::Error> {
     }
 }
 
-fn handle(mut stream_tx: UnixStream) {
+fn handle(world: Arc<World>, mut stream_tx: UnixStream) {
     let mut stream_rx = stream_tx.try_clone().unwrap();
     let decoder = StreamDecoder::new(&mut stream_rx);
     let (res_tx, res_rx) = channel::<Reply>();
@@ -69,9 +72,10 @@ fn handle(mut stream_tx: UnixStream) {
     for req in decoder {
         let req: Request = req.unwrap();
         let res_tx = res_tx.clone();
+        let world = world.clone();
         spawn(move ||{
             debug!("Recv {:?}", req);
-            let res = Reply::new(req.id, req.target);
+            let res = req.handle(world).unwrap();
             res_tx.send(res).unwrap();
         });
     }
