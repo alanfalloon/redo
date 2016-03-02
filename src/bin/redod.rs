@@ -11,12 +11,12 @@ use msgpack::Encoder;
 use redo::protocol::{Request, Reply, get_sock_path, StreamDecoder};
 use rustc_serialize::Encodable;
 use std::fs::{create_dir_all, remove_file};
-use std::sync::atomic::{ATOMIC_USIZE_INIT, AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
 use std::thread::spawn;
 use unix_socket::{UnixListener, UnixStream};
 
-static CONNS: AtomicUsize = ATOMIC_USIZE_INIT;
 
 fn main() {
     env_logger::init().unwrap();
@@ -26,17 +26,18 @@ fn main() {
     let listener = UnixListener::bind(&sock_path)
         .unwrap_or_else(|e| panic!("{}: {}", sock_path.display(), e));
     daemonize().unwrap();
+    let conn_count = ConnCount::new(|| {
+        debug!("Goodbye.");
+        std::process::exit(0);
+    });
     for (conn_id, stream) in listener.incoming().enumerate() {
         let stream = stream.unwrap();
         debug!("New connection {}.", &conn_id);
-        CONNS.fetch_add(1, Ordering::AcqRel);
+        let conn_count = conn_count.clone();
         spawn(move || {
+            let _conn_ref = ConnRef::new(conn_count);
             handle(stream);
             debug!("Done connection {}.", conn_id);
-            if CONNS.fetch_sub(1, Ordering::AcqRel) == 1 {
-                debug!("Goodbye.");
-                std::process::exit(0);
-            }
         });
     }
     unreachable!()
@@ -76,4 +77,41 @@ fn handle(mut stream_tx: UnixStream) {
     }
     drop(res_tx);
     responder.join().unwrap();
+}
+
+// Call a callback when the last connection is dropped.
+struct ConnCount<F: Fn()> {
+    cb: F,
+    count: AtomicUsize,
+}
+struct ConnRef<F: Fn()> {
+    parent: Arc<ConnCount<F>>,
+}
+impl<F: Fn()> ConnCount<F> {
+    fn new(cb: F) -> Arc<ConnCount<F>> {
+        Arc::new(ConnCount{
+            cb: cb,
+            count: AtomicUsize::new(0)
+        })
+    }
+    fn incr(&self) {
+        self.count.fetch_add(1, Ordering::AcqRel);
+    }
+    fn decr(&self) {
+        if self.count.fetch_sub(1, Ordering::AcqRel) == 1 {
+            let cb = &self.cb;
+            cb();
+        }
+    }
+}
+impl <F: Fn()> ConnRef<F> {
+    fn new(parent: Arc<ConnCount<F>>) -> ConnRef<F> {
+        parent.incr();
+        ConnRef{parent: parent}
+    }
+}
+impl <F: Fn()> Drop for ConnRef<F> {
+    fn drop(&mut self) {
+        self.parent.decr();
+    }
 }
