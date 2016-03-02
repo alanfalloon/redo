@@ -7,11 +7,12 @@ use rmp::decode::ReadError::UnexpectedEOF;
 use rustc_serialize::Decodable;
 use rustc_serialize::Encodable;
 use std::env::home_dir;
+use std::fmt;
 use std::io::Read;
 use std::iter::Iterator;
+use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::result::Result;
-use std::marker::PhantomData;
 
 #[derive(RustcEncodable, RustcDecodable, PartialEq, Debug, Copy, Clone)]
 pub enum Operation {
@@ -60,6 +61,12 @@ pub struct Reply {
 
 impl Reply {
     pub fn new(id: u32, target: PathBuf) -> Reply { Reply{id: id, target: target} }
+}
+
+impl fmt::Display for Reply {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.target)
+    }
 }
 
 pub fn get_sock_path() -> PathBuf {
